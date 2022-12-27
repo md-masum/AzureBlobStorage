@@ -1,6 +1,7 @@
 ﻿using Azure.Storage.Blobs.Models;
 using Azure.Storage.Blobs;
 using Microsoft.Extensions.Configuration;
+using Azure;
 
 namespace AzureBlobStorage;
 
@@ -89,6 +90,8 @@ internal class Worker
         Console.WriteLine("2. Create and upload blob.");
         Console.WriteLine("3. download blob.");
         Console.WriteLine("4. delete blob.");
+        Console.WriteLine("5, Show container property.");
+        Console.WriteLine("6, Set container metadata.");
         var blobInput = Console.ReadLine();
         switch (blobInput)
         {
@@ -112,6 +115,16 @@ internal class Worker
             case "4":
                 RefreshUi();
                 await DeleteBlobAsync(storageContainer);
+                await GoBack(storageContainer, storageConnectionString);
+                break;
+            case "5":
+                RefreshUi();
+                await ReadContainerPropertiesAsync(storageContainer);
+                await GoBack(storageContainer, storageConnectionString);
+                break;
+            case "6":
+                RefreshUi();
+                await AddContainerMetadataAsync(storageContainer);
                 await GoBack(storageContainer, storageConnectionString);
                 break;
             default:
@@ -185,6 +198,51 @@ internal class Worker
         foreach (var container in listOfContainer)
         {
             Console.WriteLine("\t" + container);
+        }
+    }
+
+    private static async Task ReadContainerPropertiesAsync(BlobContainerClient container)
+    {
+        try
+        {
+            // Fetch some container properties and write out their values.
+            var properties = await container.GetPropertiesAsync();
+            Console.WriteLine($"Properties for container {container.Uri}");
+            Console.WriteLine($"Public access level: {properties.Value.PublicAccess}");
+            Console.WriteLine($"Last modified time in UTC: {properties.Value.LastModified}");
+            if (properties.Value.Metadata.Any())
+            {
+                foreach (var metadata in properties.Value.Metadata)
+                {
+                    Console.WriteLine($"{metadata.Key}: {metadata.Value}");
+                }
+            }
+        }
+        catch (RequestFailedException e)
+        {
+            Console.WriteLine($"HTTP error code {e.Status}: {e.ErrorCode}");
+            Console.WriteLine(e.Message);
+        }
+    }
+
+    public static async Task AddContainerMetadataAsync(BlobContainerClient container)
+    {
+        try
+        {
+            IDictionary<string, string> metadata =
+                new Dictionary<string, string>();
+
+            // Add some metadata to the container.
+            metadata.Add("docType", "textDocuments");
+            metadata.Add("category", "guidance");
+
+            // Set the container's metadata.
+            await container.SetMetadataAsync(metadata);
+        }
+        catch (RequestFailedException e)
+        {
+            Console.WriteLine($"HTTP error code {e.Status}: {e.ErrorCode}");
+            Console.WriteLine(e.Message);
         }
     }
 
